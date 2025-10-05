@@ -6,7 +6,7 @@ from config.settings import MAP_CONFIG, VARIABLES, COLORS, CIUDADES_NASA
 def render_sidebar():
     """
     Renderiza el sidebar con controles de configuración
-    SINCRONIZADO con el mapa interactivo mediante session_state
+    ✅ SINCRONIZADO PERFECTAMENTE con el mapa interactivo
     """
     
     # Header del sidebar
@@ -41,11 +41,11 @@ def render_sidebar():
     </h3>
     """, unsafe_allow_html=True)
     
-    # Inicializar session_state si no existe
+    # ✅ INICIALIZAR SESSION STATE SI NO EXISTE
     if 'selected_city_key' not in st.session_state:
         st.session_state.selected_city_key = 'veracruz'
     
-    # Preparar datos para el selector
+    # Preparar opciones para el selector
     ciudad_keys = list(CIUDADES_NASA.keys())
     ciudad_options = {key: info['display_name'] for key, info in CIUDADES_NASA.items()}
     
@@ -56,19 +56,19 @@ def render_sidebar():
         current_index = 0
         st.session_state.selected_city_key = ciudad_keys[0]
     
-    # Selectbox sincronizado con session_state
-    selected_from_sidebar = st.sidebar.selectbox(
+    # 🎯 SELECTBOX SINCRONIZADO CON EL MAPA
+    # Forzar el índice correcto en cada render para que refleje los clicks del mapa
+    selected_city = st.sidebar.selectbox(
         "Selecciona una ciudad",
         options=ciudad_keys,
         format_func=lambda x: ciudad_options[x],
         index=current_index,
-        key='city_selector_widget',
-        help="💡 También puedes seleccionar ciudades haciendo click en el mapa abajo"
+        help="💡 También puedes seleccionar ciudades haciendo click en el mapa"
     )
     
-    # Si el usuario selecciona desde el sidebar, actualizar session_state
-    if selected_from_sidebar != st.session_state.selected_city_key:
-        st.session_state.selected_city_key = selected_from_sidebar
+    # ✅ ACTUALIZAR SESSION STATE si cambió desde el sidebar
+    if selected_city != st.session_state.selected_city_key:
+        st.session_state.selected_city_key = selected_city
         st.rerun()
     
     # Obtener datos de la ciudad actual
@@ -111,8 +111,8 @@ def render_sidebar():
         margin: 10px 0;
     ">
         <small style="color: rgba(255,255,255,0.8);">
-            💡 <strong>Tip:</strong> Puedes seleccionar ciudades 
-            haciendo click directamente en el mapa interactivo.
+            💡 <strong>Tip:</strong> Haz click en cualquier ciudad 
+            del mapa para seleccionarla automáticamente.
         </small>
     </div>
     """, unsafe_allow_html=True)
@@ -177,7 +177,7 @@ def render_sidebar():
     default_vars = ['temperatura', 'precipitacion']
     
     for var_key, var_info in VARIABLES.items():
-        if var_key in ['temperatura', 'precipitacion']:
+        if var_key in ['temperatura', 'precipitacion', 'viento', 'humedad', 'nubosidad']:
             selected_vars[var_key] = st.sidebar.checkbox(
                 var_info['nombre'],
                 value=(var_key in default_vars),
@@ -252,6 +252,9 @@ def render_sidebar():
         ">
             <li>🌡️ Temperatura (MERRA-2)</li>
             <li>🌧️ Precipitación (GPM)</li>
+            <li>💨 Viento (MERRA-2)</li>
+            <li>💧 Humedad (MERRA-2)</li>
+            <li>☁️ Nubosidad (MODIS)</li>
             <li>📅 Período: 1990-2024</li>
             <li>📊 ~320 registros mensuales</li>
         </ul>
@@ -265,7 +268,7 @@ def render_sidebar():
     st.sidebar.markdown(f"""
     <div style="text-align: center;">
         <small style="color: rgba(255,255,255,0.6);">
-            Variables seleccionadas: <strong style="color: #00A6ED;">{num_selected}/2</strong>
+            Variables seleccionadas: <strong style="color: #00A6ED;">{num_selected}/5</strong>
         </small>
     </div>
     """, unsafe_allow_html=True)

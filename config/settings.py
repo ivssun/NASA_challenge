@@ -86,7 +86,6 @@ CIUDADES_NASA = {
     }
 }
 
-# Variables climáticas con iconos y descripciones mejoradas
 VARIABLES = {
     'temperatura': {
         'nombre': '🌡️ Temperatura',
@@ -106,7 +105,7 @@ VARIABLES = {
         'nombre': '💨 Velocidad del Viento',
         'descripcion': 'Velocidad del viento a 10 metros de altura',
         'unidad': 'km/h',
-        'threshold_extreme': 60,
+        'threshold_extreme': 40,
         'color': '#06B6D4'
     },
     'humedad': {
@@ -120,12 +119,13 @@ VARIABLES = {
         'nombre': '☁️ Cobertura de Nubes',
         'descripcion': 'Porcentaje de cobertura nubosa',
         'unidad': '%',
-        'threshold_extreme': 90,
+        'threshold_extreme': 75,
         'color': '#6B7280'
     }
 }
 
 # Ciudades mexicanas organizadas por clima
+# USADO EN: Tab 2 - Buscador de Destinos
 MEXICAN_CLIMATE_ZONES = {
     'nevado': {
         'emoji': '🏔️',

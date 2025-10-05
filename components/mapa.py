@@ -62,7 +62,7 @@ def render_map(lat, lon, location_name):
 
 def render_interactive_cities_map(selected_city_key=None):
     """
-    🗺️ Mapa interactivo con CLICK MEJORADO
+    🗺️ Mapa interactivo con SINCRONIZACIÓN PERFECTA
     Retorna la ciudad clickeada (city_key) o None
     """
     # Centro de México
@@ -157,7 +157,7 @@ def render_interactive_cities_map(selected_city_key=None):
                 📍 {city_info['state']}<br>
                 🌐 {city_info['lat']}°, {city_info['lon']}°
             </p>
-            {'<div style="background: ' + city_info['color'] + '22; padding: 8px; border-radius: 5px; margin-top: 8px;"><strong style="color: ' + city_info['color'] + ';">⭐ CIUDAD SELECCIONADA</strong></div>' if is_selected else '<div style="background: #f0f0f0; padding: 6px; border-radius: 5px; margin-top: 8px;"><small style="color: #666;">Click para seleccionar</small></div>'}
+            {'<div style="background: ' + city_info['color'] + '22; padding: 8px; border-radius: 5px; margin-top: 8px;"><strong style="color: ' + city_info['color'] + ';">⭐ CIUDAD SELECCIONADA</strong></div>' if is_selected else '<div style="background: #f0f0f0; padding: 6px; border-radius: 5px; margin-top: 8px;"><small style="color: #666;">🖱️ Click para seleccionar</small></div>'}
         </div>
         """
         
@@ -266,13 +266,13 @@ def render_interactive_cities_map(selected_city_key=None):
         force_separate_button=True
     ).add_to(m)
     
-    # 🔥 CAPTURAR CLICKS - con key única para evitar problemas de caché
+    # 🔥 CAPTURAR CLICKS - KEY FIJO para evitar resets
     map_data = st_folium(
         m,
         width=None,
         height=500,
         returned_objects=["last_object_clicked", "last_clicked"],
-        key=f"interactive_map_{selected_city_key}"  # Key única para forzar refresco
+        key="nasa_interactive_map"  # ✅ KEY FIJO - no cambia
     )
     
     # 🎯 DETECTAR QUÉ CIUDAD FUE CLICKEADA

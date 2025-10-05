@@ -1,4 +1,4 @@
-# app.py
+# app.py - VERSIÓN COMPLETA CON SINCRONIZACIÓN PERFECTA
 import streamlit as st
 import streamlit.components.v1 as components
 import pandas as pd
@@ -13,9 +13,20 @@ from components import (
     render_climate_finder,
     render_metric_cards
 )
-
+from components.metricas import (
+    render_precipitation_card, 
+    render_wind_card,
+    render_humidity_card,
+    render_cloudiness_card
+)
 from components.mapa import render_interactive_cities_map
-from data.csv_processor import CSVProcessor
+
+# IMPORTAR ANALIZADORES
+from data.csv_processor_optimized import CSVProcessorOptimized
+from data.precipitation_analyzer import PrecipitationAnalyzer, integrate_with_processor
+from data.wind_analyzer import WindAnalyzer, integrate_wind_with_processor
+from data.humidity_analyzer import HumidityAnalyzer, integrate_humidity_with_processor
+from data.cloudiness_analyzer import CloudinessAnalyzer, integrate_cloudiness_with_processor
 
 # Configuración de página
 st.set_page_config(
@@ -25,30 +36,42 @@ st.set_page_config(
     initial_sidebar_state=PAGE_CONFIG['initial_sidebar_state']
 )
 
-# Aplicar estilos
 st.markdown(get_custom_css(), unsafe_allow_html=True)
 
-# ============================================
-# INICIALIZAR SESSION STATE
-# ============================================
+# ✅ INICIALIZAR SESSION STATE ANTES DE TODO
 if 'selected_city_key' not in st.session_state:
     st.session_state.selected_city_key = 'veracruz'
 
-# ============================================
-# INICIALIZAR PROCESADOR
-# ============================================
+# INICIALIZAR PROCESADORES
 @st.cache_resource
 def init_processor():
-    """Inicializa y carga los CSVs de NASA"""
-    processor = CSVProcessor()
+    processor = CSVProcessorOptimized()
     processor.load_all_csvs()
     return processor
 
-processor = init_processor()
+@st.cache_resource
+def init_precipitation_analyzer():
+    return PrecipitationAnalyzer()
 
-# ============================================
-# HEADER PRINCIPAL
-# ============================================
+@st.cache_resource
+def init_wind_analyzer():
+    return WindAnalyzer()
+
+@st.cache_resource
+def init_humidity_analyzer():
+    return HumidityAnalyzer()
+
+@st.cache_resource
+def init_cloudiness_analyzer():
+    return CloudinessAnalyzer()
+
+processor = init_processor()
+precip_analyzer = init_precipitation_analyzer()
+wind_analyzer = init_wind_analyzer()
+humidity_analyzer = init_humidity_analyzer()
+cloudiness_analyzer = init_cloudiness_analyzer()
+
+# HEADER
 st.markdown("""
 <div style="text-align: center; padding: 20px 0;">
     <h1 style="margin-bottom: 0;">🛰️ NASA Climate Intelligence</h1>
@@ -60,42 +83,31 @@ st.markdown("""
 
 st.markdown("---")
 
-# Mostrar estado
 if len(processor.data) > 0:
     total_vars = sum(len(vars_dict) for vars_dict in processor.data.values())
-    st.success(f"✅ Datos NASA cargados: {len(processor.data)} ciudades | {total_vars} variables con series temporales (1990-2024)")
+    st.success(f"✅ Datos NASA cargados: {len(processor.data)} ciudades | {total_vars} variables (1990-2024)")
 else:
     st.error("❌ No se cargaron datos. Verifica la carpeta data/csv/")
 
 st.markdown("---")
 
-# ============================================
-# TABS PRINCIPALES
-# ============================================
+# TABS
 tab1, tab2, tab3 = st.tabs([
     "🌍 Análisis por Ubicación",
     "🔍 Buscador de Destinos",
     "📊 Estadísticas Globales"
 ])
 
-# ============================================
-# TAB 1: ANÁLISIS POR UBICACIÓN
-# ============================================
-# REEMPLAZA COMPLETAMENTE EL CONTENIDO DE with tab1: en app.py
-
+# TAB 1 - ANÁLISIS POR UBICACIÓN
 with tab1:
-    st.markdown("### 🔍 Selecciona una ubicación para analizar")
+    st.markdown("### 📍 Selecciona una ubicación para analizar")
     
-    # ============================================
-    # PASO 1: RENDERIZAR SIDEBAR
-    # ============================================
+    # 🎯 RENDERIZAR SIDEBAR - obtiene inputs del usuario
     user_inputs = render_sidebar()
     
-    # ============================================
-    # PASO 2: MAPA INTERACTIVO
-    # ============================================
     st.markdown("#### 🗺️ Mapa de Ciudades NASA")
     
+    # Mensaje informativo
     st.markdown("""
     <div style="
         background: rgba(99, 102, 241, 0.15);
@@ -105,34 +117,33 @@ with tab1:
         margin-bottom: 20px;
     ">
         <p style="color: rgba(255,255,255,0.9); margin: 0; font-size: 0.95rem;">
-            💡 <strong>Tip:</strong> Haz click en cualquier ciudad del mapa para seleccionarla 
-            y ver sus datos climáticos históricos de NASA GIOVANNI.
+            🖱️ <strong>Haz click en cualquier ciudad del mapa</strong> para seleccionarla automáticamente.
+            También puedes usar el selector del sidebar.
         </p>
     </div>
     """, unsafe_allow_html=True)
     
-    # RENDERIZAR MAPA Y CAPTURAR CLICKS
-    clicked_city = render_interactive_cities_map(selected_city_key=user_inputs['city_key'])
+    # 🗺️ RENDERIZAR MAPA INTERACTIVO
+    # Pasar la ciudad actualmente seleccionada
+    clicked_city = render_interactive_cities_map(
+        selected_city_key=st.session_state.selected_city_key
+    )
     
-    # ============================================
-    # PASO 3: PROCESAR CLICK EN EL MAPA
-    # ============================================
+    # 🔄 SI SE HIZO CLICK EN EL MAPA, ACTUALIZAR SESSION STATE Y RECARGAR
     if clicked_city and clicked_city != st.session_state.selected_city_key:
-        # El usuario clickeó una ciudad DIFERENTE a la actual
+        # Guardar la ciudad clickeada
         st.session_state.selected_city_key = clicked_city
         
-        # Mostrar notificación de cambio
+        # Obtener información de la ciudad
         city_name = CIUDADES_NASA[clicked_city]['name']
-        st.success(f"🔄 **Ciudad seleccionada:** {city_name}")
+        city_icon = CIUDADES_NASA[clicked_city]['icon']
         
-        # Forzar recarga para actualizar toda la interfaz
+        # 🔁 RECARGAR INMEDIATAMENTE para actualizar el sidebar
         st.rerun()
     
     st.markdown("---")
     
-    # ============================================
     # INFORMACIÓN DE LA CIUDAD SELECCIONADA
-    # ============================================
     col_info1, col_info2 = st.columns([1, 1])
     
     with col_info1:
@@ -178,13 +189,16 @@ with tab1:
                 <strong style='color: #6366f1;'>🌡️ Variables:</strong>
                 <p style='color: white; margin: 5px 0;'>
                     {'✅ Temperatura' if user_inputs['variables'].get('temperatura') else '⬜ Temperatura'}<br>
-                    {'✅ Precipitación' if user_inputs['variables'].get('precipitacion') else '⬜ Precipitación'}
+                    {'✅ Precipitación' if user_inputs['variables'].get('precipitacion') else '⬜ Precipitación'}<br>
+                    {'✅ Viento' if user_inputs['variables'].get('viento') else '⬜ Viento'}<br>
+                    {'✅ Humedad' if user_inputs['variables'].get('humedad') else '⬜ Humedad'}<br>
+                    {'✅ Nubosidad' if user_inputs['variables'].get('nubosidad') else '⬜ Nubosidad'}
                 </p>
             </div>
             <div style='margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1);'>
                 <p style='color: rgba(255,255,255,0.6); font-size: 0.85rem; text-align: center;'>
                     🛰️ Datos de NASA GIOVANNI<br>
-                    Período: 1990-2024 (~320 registros)
+                    Período: 1990-2024 (~35 años)
                 </p>
             </div>
         </div>
@@ -193,6 +207,7 @@ with tab1:
     st.markdown("---")
     st.markdown("### 📈 Análisis de Probabilidades")
     
+    # ANÁLISIS DE DATOS
     if user_inputs['consultar']:
         if len(processor.data) == 0:
             st.error("❌ No hay datos cargados")
@@ -204,117 +219,135 @@ with tab1:
                 month = fecha.month
                 day = fecha.day
                 
-                results = {}
+                results_temp = {}
+                results_precip = None
+                results_wind = None
+                results_humidity = None
+                results_cloudiness = None
                 city_name = None
                 
-                # Procesar variables seleccionadas
-                for var_key, is_selected in user_inputs['variables'].items():
-                    if not is_selected:
-                        continue
-                    
-                    if var_key not in ['temperatura', 'precipitacion']:
-                        continue
-                    
-                    historical_data, detected_city = processor.get_historical_data(
-                        lat, lon, var_key, month, day
+                # TEMPERATURA
+                if user_inputs['variables'].get('temperatura'):
+                    temp_vals, detected_city = processor.get_historical_data(
+                        lat, lon, 'temperatura', month, day
                     )
                     
                     if detected_city:
                         city_name = detected_city
                     
-                    if historical_data is not None and len(historical_data) > 0:
-                        var_info = VARIABLES[var_key]
-                        avg_value = float(np.mean(historical_data))
+                    if temp_vals is not None and len(temp_vals) > 0:
+                        var_info = VARIABLES['temperatura']
+                        avg_value = float(np.mean(temp_vals))
                         probability = processor.calculate_probability(
-                            historical_data,
+                            temp_vals,
                             threshold=var_info['threshold_extreme'],
                             condition='greater'
                         )
                         delta = avg_value - var_info['threshold_extreme']
                         
-                        results[var_key] = {
+                        results_temp['temperatura'] = {
                             'value': round(avg_value, 1),
                             'delta': round(delta, 1),
                             'probability': probability
                         }
                 
-                # Mostrar resultados
-                if results:
+                # PRECIPITACIÓN
+                if user_inputs['variables'].get('precipitacion'):
+                    results_precip = integrate_with_processor(
+                        processor, precip_analyzer, lat, lon, month, day
+                    )
+                    if results_precip and not city_name:
+                        city_name = results_precip['city_name']
+                
+                # VIENTO
+                if user_inputs['variables'].get('viento'):
+                    results_wind = integrate_wind_with_processor(
+                        processor, wind_analyzer, lat, lon, month, day
+                    )
+                    if results_wind and not city_name:
+                        city_name = results_wind['city_name']
+                
+                # HUMEDAD
+                if user_inputs['variables'].get('humedad'):
+                    results_humidity = integrate_humidity_with_processor(
+                        processor, humidity_analyzer, lat, lon, month, day
+                    )
+                    if results_humidity and not city_name:
+                        city_name = results_humidity['city_name']
+                
+                # NUBOSIDAD
+                if user_inputs['variables'].get('nubosidad'):
+                    results_cloudiness = integrate_cloudiness_with_processor(
+                        processor, cloudiness_analyzer, lat, lon, month, day
+                    )
+                    if results_cloudiness and not city_name:
+                        city_name = results_cloudiness['city_name']
+                
+                # MOSTRAR RESULTADOS
+                if any([results_temp, results_precip, results_wind, results_humidity, results_cloudiness]):
                     st.success(f"✅ Análisis completado - Ciudad NASA: **{city_name}**")
-                    st.markdown("### 📊 Métricas Climáticas (Datos Reales NASA 1990-2024)")
-                    render_metric_cards(results)
                     
-                    st.markdown("---")
+                    if results_temp:
+                        st.markdown("#### 🌡️ Temperatura")
+                        render_metric_cards(results_temp)
+                        st.markdown("---")
                     
-                    # Info adicional
+                    if results_precip:
+                        st.markdown("#### 🌧️ Precipitación")
+                        render_precipitation_card(results_precip)
+                        st.markdown("---")
+                    
+                    if results_wind:
+                        st.markdown("#### 💨 Viento")
+                        render_wind_card(results_wind)
+                        st.markdown("---")
+                    
+                    if results_humidity:
+                        st.markdown("#### 💧 Humedad")
+                        render_humidity_card(results_humidity)
+                        st.markdown("---")
+                    
+                    if results_cloudiness:
+                        st.markdown("#### ☁️ Nubosidad")
+                        render_cloudiness_card(results_cloudiness)
+                        st.markdown("---")
+                    
+                    # Información adicional
                     st.markdown("### 📈 Detalles del Análisis")
                     col_a, col_b, col_c = st.columns(3)
                     
                     with col_a:
-                        st.metric("🏙 Ciudad NASA", city_name)
+                        st.metric("🏙️ Ciudad NASA", city_name)
                     with col_b:
                         st.metric("📅 Mes", fecha.strftime("%B"))
                     with col_c:
-                        st.metric("📊 Variables", len(results))
-                    
-                    # Leyenda de interpretación
-                    with st.expander("ℹ️ ¿Cómo interpretar estos resultados?"):
-                        st.markdown("""
-                        <div style="color: rgba(255,255,255,0.9); line-height: 1.8;">
-                            <p><strong style="color: #00A6ED;">📊 Valor promedio:</strong> 
-                            Es el promedio histórico para este mes basado en 35 años de datos (1990-2024).</p>
-                            
-                            <p><strong style="color: #00A6ED;">📈 Probabilidad:</strong> 
-                            Indica qué tan frecuente ha sido que se supere el umbral extremo en este mes.</p>
-                            
-                            <p><strong style="color: #00A6ED;">🎯 Umbrales extremos:</strong></p>
-                            <ul>
-                                <li>Temperatura: > 35°C (calor extremo)</li>
-                                <li>Precipitación: > 50mm (lluvia intensa)</li>
-                            </ul>
-                        </div>
-                        """, unsafe_allow_html=True)
+                        vars_count = len([v for v in [results_temp, results_precip, results_wind, results_humidity, results_cloudiness] if v])
+                        st.metric("📊 Variables", vars_count)
                 else:
-                    st.warning("⚠️ Selecciona al menos 'Temperatura' o 'Precipitación' para analizar")
+                    st.warning("⚠️ Selecciona al menos una variable para analizar")
     
     else:
         st.markdown("""
         <div class="metric-card animated" style="text-align: center; padding: 40px;">
-            <h3>👈 Configura tu análisis</h3>
+            <h3>⚙️ Configura tu análisis</h3>
             <p style="color: rgba(255,255,255,0.8); font-size: 1.1rem; margin-top: 15px;">
                 Usa el panel lateral para:<br><br>
-                1️⃣ Ajustar la fecha<br>
-                2️⃣ Seleccionar variables<br>
-                3️⃣ Presionar <strong>"🔍 Consultar Datos NASA"</strong>
-            </p>
-            <br>
-            <p style="color: rgba(255,255,255,0.6); font-size: 0.9rem;">
-                💡 También puedes hacer click en cualquier ciudad del mapa arriba
+                📍 Seleccionar ciudad (sidebar o mapa)<br>
+                📅 Ajustar la fecha<br>
+                🌡️ Seleccionar variables<br><br>
+                Luego presiona <strong>"🔍 Consultar Datos NASA"</strong>
             </p>
         </div>
         """, unsafe_allow_html=True)
 
-# ============================================
-# TAB 2: BUSCADOR DE DESTINOS
-# ============================================
+# TAB 2 - BUSCADOR DE DESTINOS
 with tab2:
     st.markdown("### 🔍 Encuentra tu Destino Perfecto por Clima")
-    st.markdown("""
-    <p style="color: rgba(255,255,255,0.8); font-size: 1rem; margin-bottom: 30px;">
-        ¿Planeas unas vacaciones? Selecciona el clima que deseas y te mostraremos 
-        los mejores destinos en México con mayor probabilidad de tener esas condiciones.
-    </p>
-    """, unsafe_allow_html=True)
-    
-    render_climate_finder()
+    render_climate_finder(processor)
 
-# ============================================
-# TAB 3: ESTADÍSTICAS GLOBALES
-# ============================================
+# TAB 3 - ESTADÍSTICAS GLOBALES
 with tab3:
     st.markdown("### 📊 Estadísticas Climáticas de México")
-    
-    # Mostrar las 5 ciudades con datos
     st.markdown("#### 🛰️ Ciudades con Datos NASA GIOVANNI")
     
     cols = st.columns(5)
@@ -334,70 +367,13 @@ with tab3:
                 </p>
                 <div style="margin-top: 15px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.1);">
                     <small style="color: rgba(255,255,255,0.6);">
-                        ✅ Datos disponibles:<br>
-                        Temperatura & Precipitación
+                        ✅ 5 variables climáticas
                     </small>
                 </div>
             </div>
             """, unsafe_allow_html=True)
-    
-    st.markdown("---")
-    
-    st.markdown("""
-    <div class="metric-card">
-        <h4 style="color: #00A6ED;">🌎 Cobertura del Sistema</h4>
-        <p style="color: rgba(255,255,255,0.9); line-height: 1.8;">
-            Nuestro sistema analiza datos históricos de NASA GIOVANNI para <strong>5 ciudades principales</strong> 
-            con series temporales completas de 1990 a 2024 (35 años de datos mensuales = ~320 registros por variable).
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    st.markdown("---")
-    st.markdown("#### 🛰️ Fuentes de Datos NASA")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("""
-        <div class="metric-card">
-            <h4 style="color: #6366f1;">📡 GIOVANNI - MERRA-2 & GPM</h4>
-            <p style="color: rgba(255,255,255,0.9);">
-                Modern-Era Retrospective analysis for Research and Applications
-            </p>
-            <ul style="color: rgba(255,255,255,0.8); line-height: 1.8;">
-                <li>Datos satelitales NASA</li>
-                <li>Resolución: Mensual</li>
-                <li>Período: 1990-2024</li>
-                <li>~320 registros por variable</li>
-            </ul>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown("""
-        <div class="metric-card">
-            <h4 style="color: #06b6d4;">🌍 Variables y Ciudades</h4>
-            <p style="color: rgba(255,255,255,0.9); margin-bottom: 10px;">
-                <strong>Variables disponibles:</strong>
-            </p>
-            <ul style="color: rgba(255,255,255,0.8); line-height: 1.6; margin-bottom: 15px;">
-                <li>🌡️ Temperatura (MERRA-2)</li>
-                <li>🌧️ Precipitación (GPM)</li>
-            </ul>
-            <p style="color: rgba(255,255,255,0.9); margin-bottom: 10px;">
-                <strong>Ciudades:</strong>
-            </p>
-            <ul style="color: rgba(255,255,255,0.8); line-height: 1.6;">
-                <li>🌊 Veracruz • 🏛️ CDMX • 🏖️ Cancún</li>
-                <li>🏔️ Monterrey • 🌵 Tijuana</li>
-            </ul>
-        </div>
-        """, unsafe_allow_html=True)
 
-# ============================================
 # FOOTER
-# ============================================
 st.markdown("---")
 st.markdown("""
 <div class='footer animated'>
@@ -408,13 +384,10 @@ st.markdown("""
         NASA Space Apps Challenge 2024
     </h4>
     <p style="font-size: 1rem; opacity: 0.9;">
-        Datos 100% reales de <strong>NASA GIOVANNI</strong> • MERRA-2 & GPM Datasets
+        Datos 100% reales de <strong>NASA GIOVANNI</strong> • MERRA-2 & GPM
     </p>
     <p style="font-size: 0.9rem; opacity: 0.7; margin-top: 15px;">
-        🌟 Proyecto: <strong>WIROMP Los Ubuntus</strong>
-    </p>
-    <p style="font-size: 0.8rem; opacity: 0.6; margin-top: 10px;">
-        Veracruz, México • 2024
+        Proyecto: <strong>WIROMP Los Ubuntus</strong>
     </p>
 </div>
 """, unsafe_allow_html=True)
