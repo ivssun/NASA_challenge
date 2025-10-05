@@ -176,7 +176,7 @@ def render_precipitation_card(analysis):
             {icon}
         </div>
         <h3 style="text-align: center; color: {color}; margin: 0;">
-            {prob}% de Probabilidad de Lluvia
+            {prob:.2f}% de Probabilidad de Lluvia
         </h3>
     </div>
     """, unsafe_allow_html=True)

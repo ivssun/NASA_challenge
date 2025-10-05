@@ -219,22 +219,22 @@ class PrecipitationAnalyzer:
         
         # Construir mensaje según probabilidad
         if prob < 10:
-            message = f"☀️ **Muy baja probabilidad de lluvia** ({prob}%) en {month_name}.\n\n"
+            message = f"☀️ **Muy baja probabilidad de lluvia** ({prob:.2f}%) en {month_name}.\n\n"
             message += "Es muy probable que tengas un día seco. Perfecto para actividades al aire libre."
         
         elif prob < 30:
-            message = f"🌤️ **Baja probabilidad de lluvia** ({prob}%) en {month_name}.\n\n"
+            message = f"🌤️ **Baja probabilidad de lluvia** ({prob:.2f}%) en {month_name}.\n\n"
             message += f"Si llegara a llover, se esperan **{avg_mm}mm** ({intensity.lower()}).\n"
             message += "Lleva un paraguas ligero por si acaso."
         
         elif prob < 60:
-            message = f"⛅ **Probabilidad moderada de lluvia** ({prob}%) en {month_name}.\n\n"
+            message = f"⛅ **Probabilidad moderada de lluvia** ({prob:.2f}%) en {month_name}.\n\n"
             message += f"Si llueve, se esperan **{avg_mm}mm** ({intensity.lower()}).\n"
             message += f"Rango típico: {analysis['range_mm_per_day'][0]}-{analysis['range_mm_per_day'][1]}mm\n\n"
             message += "Recomendación: Ten plan B para actividades."
         
         else:
-            message = f"🌧️ **Alta probabilidad de lluvia** ({prob}%) en {month_name}.\n\n"
+            message = f"🌧️ **Alta probabilidad de lluvia** ({prob:.2f}%) en {month_name}.\n\n"
             message += f"Se esperan **{avg_mm}mm** de precipitación ({intensity.lower()}).\n"
             message += f"Rango típico: {analysis['range_mm_per_day'][0]}-{analysis['range_mm_per_day'][1]}mm\n\n"
             message += f"📊 Históricamente, llueve ~{analysis['expected_rainy_days_per_month']} días en este mes.\n"

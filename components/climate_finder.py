@@ -54,7 +54,7 @@ def render_destination_map(results, condition_info):
             </p>
             <div style="background: {color}22; padding: 10px; border-radius: 5px; margin-top: 10px;">
                 <h2 style="margin: 0; color: {color}; text-align: center;">
-                    {prob}%
+                    {prob:.2f}%
                 </h2>
                 <p style="margin: 5px 0; text-align: center; font-size: 0.85rem;">
                     Probabilidad
@@ -67,7 +67,7 @@ def render_destination_map(results, condition_info):
         folium.Marker(
             location=[city_info['lat'], city_info['lon']],
             popup=folium.Popup(popup_html, max_width=250),
-            tooltip=f"{result['city_name']} - {prob}%",
+            tooltip=f"{result['city_name']} - {prob:.2f}%",
             icon=folium.Icon(color=icon_color, icon='star', prefix='fa')
         ).add_to(m)
         
@@ -294,7 +294,7 @@ def render_climate_finder(processor=None):
                             margin: 10px 0;
                         ">
                             <div style="font-size: 2rem; margin-bottom: 5px;">{prob_emoji}</div>
-                            <h2 style="margin: 0; color: {prob_color};">{prob}%</h2>
+                            <h2 style="margin: 0; color: {prob_color};">{prob:.2f}%</h2>
                             <p style="margin: 5px 0; color: rgba(255,255,255,0.6); font-size: 0.85rem;">
                                 Probabilidad
                             </p>

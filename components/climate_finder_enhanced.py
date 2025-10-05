@@ -95,7 +95,7 @@ def render_destination_map_enhanced(results, condition_info):
                     text-align: center;
                     font-size: 2rem;
                 ">
-                    {badge} {prob}%
+                    {badge} {prob:.2f}%
                 </h2>
                 <p style="
                     margin: 8px 0 0 0; 
@@ -115,7 +115,7 @@ def render_destination_map_enhanced(results, condition_info):
         folium.Marker(
             location=[city_info['lat'], city_info['lon']],
             popup=folium.Popup(popup_html, max_width=300),
-            tooltip=f"{result['city_name']} - {prob}% {badge}",
+            tooltip=f"{result['city_name']} - {prob:.2f}% {badge}",
             icon=folium.Icon(color=icon_color, icon='location-dot', prefix='fa')
         ).add_to(m)
         
@@ -259,7 +259,7 @@ def render_result_cards_enhanced(results, condition_info, show_details=True, max
                 font-weight: bold;
                 margin: 5px 0;
             ">
-                {prob}%
+                {prob:.2f}%
             </div>
             <div style="
                 color: rgba(255,255,255,0.8); 
