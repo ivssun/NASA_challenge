@@ -1,12 +1,12 @@
 # components/sidebar.py
 import streamlit as st
 from datetime import datetime
-from config.settings import MAP_CONFIG, VARIABLES, COLORS
+from config.settings import MAP_CONFIG, VARIABLES, COLORS, CIUDADES_NASA
 
 def render_sidebar():
     """
     Renderiza el sidebar con controles de configuración
-    Diseño espacial NASA elegante
+    SINCRONIZADO con el mapa interactivo mediante session_state
     """
     
     # Header del sidebar
@@ -41,31 +41,81 @@ def render_sidebar():
     </h3>
     """, unsafe_allow_html=True)
     
-    location_name = st.sidebar.text_input(
-        "Nombre del lugar",
-        value=MAP_CONFIG['default_location'],
-        help="Escribe el nombre de la ciudad o ubicación",
-        placeholder="Ej: Guadalajara, Cancún..."
+    # Inicializar session_state si no existe
+    if 'selected_city_key' not in st.session_state:
+        st.session_state.selected_city_key = 'veracruz'
+    
+    # Preparar datos para el selector
+    ciudad_keys = list(CIUDADES_NASA.keys())
+    ciudad_options = {key: info['display_name'] for key, info in CIUDADES_NASA.items()}
+    
+    # Calcular índice actual basado en session_state
+    try:
+        current_index = ciudad_keys.index(st.session_state.selected_city_key)
+    except (ValueError, KeyError):
+        current_index = 0
+        st.session_state.selected_city_key = ciudad_keys[0]
+    
+    # Selectbox sincronizado con session_state
+    selected_from_sidebar = st.sidebar.selectbox(
+        "Selecciona una ciudad",
+        options=ciudad_keys,
+        format_func=lambda x: ciudad_options[x],
+        index=current_index,
+        key='city_selector_widget',
+        help="💡 También puedes seleccionar ciudades haciendo click en el mapa abajo"
     )
     
-    # Coordenadas en columnas
-    col1, col2 = st.sidebar.columns(2)
-    with col1:
-        lat = st.number_input(
-            "Latitud",
-            value=MAP_CONFIG['default_lat'],
-            format="%.6f",
-            help="Coordenada de latitud (-90 a 90)",
-            step=0.01
-        )
-    with col2:
-        lon = st.number_input(
-            "Longitud",
-            value=MAP_CONFIG['default_lon'],
-            format="%.6f",
-            help="Coordenada de longitud (-180 a 180)",
-            step=0.01
-        )
+    # Si el usuario selecciona desde el sidebar, actualizar session_state
+    if selected_from_sidebar != st.session_state.selected_city_key:
+        st.session_state.selected_city_key = selected_from_sidebar
+        st.rerun()
+    
+    # Obtener datos de la ciudad actual
+    city_data = CIUDADES_NASA[st.session_state.selected_city_key]
+    location_name = city_data['name']
+    lat = city_data['lat']
+    lon = city_data['lon']
+    
+    # Tarjeta de información de la ciudad
+    st.sidebar.markdown(f"""
+    <div style="
+        background: rgba(99, 102, 241, 0.2);
+        padding: 15px;
+        border-radius: 10px;
+        border-left: 3px solid {city_data['color']};
+        margin: 15px 0;
+    ">
+        <div style="font-size: 2rem; text-align: center; margin-bottom: 10px;">
+            {city_data['icon']}
+        </div>
+        <p style="color: rgba(255,255,255,0.9); font-size: 0.9rem; text-align: center; margin: 0;">
+            {city_data['description']}
+        </p>
+        <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.1);">
+            <small style="color: rgba(255,255,255,0.7);">
+                📍 {city_data['state']}<br>
+                🌐 {lat}°, {lon}°
+            </small>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Tip sobre selección desde mapa
+    st.sidebar.markdown("""
+    <div style="
+        background: rgba(0, 166, 237, 0.15);
+        padding: 10px;
+        border-radius: 8px;
+        border-left: 3px solid #00A6ED;
+        margin: 10px 0;
+    ">
+        <small style="color: rgba(255,255,255,0.8);">
+            💡 <strong>Tip:</strong> Puedes seleccionar ciudades 
+            haciendo click directamente en el mapa interactivo.
+        </small>
+    </div>
+    """, unsafe_allow_html=True)
     
     st.sidebar.markdown("<br>", unsafe_allow_html=True)
     
@@ -88,7 +138,7 @@ def render_sidebar():
         help="Elige el día que quieres analizar"
     )
     
-    # Mostrar día de la semana
+    # Día de la semana en español
     day_name_spanish = {
         0: "Lunes", 1: "Martes", 2: "Miércoles", 3: "Jueves",
         4: "Viernes", 5: "Sábado", 6: "Domingo"
@@ -124,36 +174,35 @@ def render_sidebar():
     """, unsafe_allow_html=True)
     
     selected_vars = {}
-    
-    # Variables principales (seleccionadas por defecto)
-    default_vars = ['temperatura', 'precipitacion', 'viento', 'humedad']
+    default_vars = ['temperatura', 'precipitacion']
     
     for var_key, var_info in VARIABLES.items():
-        # Checkbox con icono
-        selected_vars[var_key] = st.sidebar.checkbox(
-            var_info['nombre'],
-            value=(var_key in default_vars),
-            help=f"{var_info['descripcion']} (Unidad: {var_info['unidad']})"
-        )
-        
-        # Si está seleccionado, mostrar umbral
-        if selected_vars[var_key]:
-            st.sidebar.markdown(f"""
-            <div style="
-                background: rgba(255, 255, 255, 0.05);
-                padding: 5px 10px;
-                border-radius: 5px;
-                border-left: 3px solid {var_info['color']};
-                margin: 5px 0 10px 20px;
-                font-size: 0.8rem;
-            ">
-                <small style="color: rgba(255,255,255,0.6);">
-                    Umbral extremo: <strong style="color: {var_info['color']};">
-                    {var_info['threshold_extreme']} {var_info['unidad']}
-                    </strong>
-                </small>
-            </div>
-            """, unsafe_allow_html=True)
+        if var_key in ['temperatura', 'precipitacion']:
+            selected_vars[var_key] = st.sidebar.checkbox(
+                var_info['nombre'],
+                value=(var_key in default_vars),
+                help=f"{var_info['descripcion']} (Unidad: {var_info['unidad']})"
+            )
+            
+            if selected_vars[var_key]:
+                st.sidebar.markdown(f"""
+                <div style="
+                    background: rgba(255, 255, 255, 0.05);
+                    padding: 5px 10px;
+                    border-radius: 5px;
+                    border-left: 3px solid {var_info['color']};
+                    margin: 5px 0 10px 20px;
+                    font-size: 0.8rem;
+                ">
+                    <small style="color: rgba(255,255,255,0.6);">
+                        Umbral extremo: <strong style="color: {var_info['color']};">
+                        {var_info['threshold_extreme']} {var_info['unidad']}
+                        </strong>
+                    </small>
+                </div>
+                """, unsafe_allow_html=True)
+        else:
+            selected_vars[var_key] = False
     
     st.sidebar.markdown("---")
     
@@ -167,7 +216,6 @@ def render_sidebar():
         help="Obtén las probabilidades climáticas basadas en datos históricos"
     )
     
-    # Animación cuando se presiona
     if consultar:
         st.sidebar.markdown("""
         <div style="
@@ -176,7 +224,6 @@ def render_sidebar():
             background: linear-gradient(90deg, #6366f1, #00A6ED);
             border-radius: 10px;
             margin-top: 10px;
-            animation: pulse 1s ease-in-out;
         ">
             <small style="color: white;">🛰️ Consultando satélites...</small>
         </div>
@@ -185,7 +232,7 @@ def render_sidebar():
     st.sidebar.markdown("---")
     
     # ============================================
-    # INFORMACIÓN Y TIPS
+    # INFORMACIÓN
     # ============================================
     st.sidebar.markdown("""
     <div style="
@@ -195,7 +242,7 @@ def render_sidebar():
         border-left: 3px solid #6366f1;
     ">
         <h4 style="color: #00A6ED; margin-top: 0; font-size: 0.95rem;">
-            💡 Tips de Uso
+            💡 Datos Disponibles
         </h4>
         <ul style="
             color: rgba(255,255,255,0.8);
@@ -203,21 +250,22 @@ def render_sidebar():
             line-height: 1.6;
             padding-left: 20px;
         ">
-            <li>Ajusta las coordenadas para ubicaciones precisas</li>
-            <li>Selecciona múltiples variables para análisis completo</li>
-            <li>Los datos provienen de satélites NASA</li>
+            <li>🌡️ Temperatura (MERRA-2)</li>
+            <li>🌧️ Precipitación (GPM)</li>
+            <li>📅 Período: 1990-2024</li>
+            <li>📊 ~320 registros mensuales</li>
         </ul>
     </div>
     """, unsafe_allow_html=True)
     
     st.sidebar.markdown("<br>", unsafe_allow_html=True)
     
-    # Contador de variables seleccionadas
+    # Contador de variables
     num_selected = sum(selected_vars.values())
     st.sidebar.markdown(f"""
     <div style="text-align: center;">
         <small style="color: rgba(255,255,255,0.6);">
-            Variables seleccionadas: <strong style="color: #00A6ED;">{num_selected}/5</strong>
+            Variables seleccionadas: <strong style="color: #00A6ED;">{num_selected}/2</strong>
         </small>
     </div>
     """, unsafe_allow_html=True)
@@ -231,5 +279,7 @@ def render_sidebar():
         'lon': lon,
         'date': selected_date,
         'variables': selected_vars,
-        'consultar': consultar
+        'consultar': consultar,
+        'city_key': st.session_state.selected_city_key,
+        'city_data': city_data
     }

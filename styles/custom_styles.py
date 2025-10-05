@@ -75,18 +75,46 @@ def get_custom_css():
         }}
         
         /* ============================================
-           SIDEBAR
-           ============================================ */
+        SIDEBAR
+        ============================================ */
         section[data-testid="stSidebar"] {{
             background: linear-gradient(180deg, rgba(11, 61, 145, 0.95) 0%, rgba(10, 14, 39, 0.95) 100%);
             backdrop-filter: blur(10px);
             border-right: 2px solid rgba(99, 102, 241, 0.3);
         }}
-        
+
         section[data-testid="stSidebar"] > div {{
             padding-top: 2rem;
         }}
-        
+
+        /* Ocultar SOLO el texto keyboard del botón del sidebar */
+        section[data-testid="stSidebar"] span[data-testid="stIconMaterial"] {{
+            display: none !important;
+        }}
+
+        /* Agregar icono solo al botón dentro del sidebar */
+        section[data-testid="stSidebar"] button[kind="header"] > div::after {{
+            content: "☰" !important;
+            font-size: 24px !important;
+            color: #00A6ED !important;
+            font-weight: bold !important;
+            display: inline-block !important;
+            line-height: 1 !important;
+        }}
+
+        /* Estilo del botón del sidebar */
+        section[data-testid="stSidebar"] button[kind="header"] {{
+            background: rgba(99, 102, 241, 0.2) !important;
+            border-radius: 8px !important;
+            padding: 8px 12px !important;
+            transition: all 0.3s ease !important;
+        }}
+
+        section[data-testid="stSidebar"] button[kind="header"]:hover {{
+            background: rgba(99, 102, 241, 0.4) !important;
+        }}
+
+
         /* ============================================
            BOTONES
            ============================================ */

@@ -1,6 +1,6 @@
 # components/__init__.py
 from .sidebar import render_sidebar
-from .mapa import render_map, render_mini_map
+from .mapa import render_map, render_mini_map, render_interactive_cities_map
 from .metricas import render_metric_cards, render_info_card
 from .graficos import (
     render_probability_chart,
@@ -15,6 +15,7 @@ __all__ = [
     'render_sidebar',
     'render_map',
     'render_mini_map',
+    'render_interactive_cities_map',
     'render_metric_cards',
     'render_info_card',
     'render_probability_chart',

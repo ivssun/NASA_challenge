@@ -32,6 +32,60 @@ MAP_CONFIG = {
     'default_zoom': 6
 }
 
+# Ciudades con datos de NASA GIOVANNI
+CIUDADES_NASA = {
+    'veracruz': {
+        'name': 'Veracruz',
+        'display_name': '🌊 Veracruz',
+        'lat': 19.20,
+        'lon': -96.15,
+        'state': 'Veracruz',
+        'icon': '🌊',
+        'color': '#06b6d4',
+        'description': 'Puerto tropical del Golfo de México'
+    },
+    'cdmx': {
+        'name': 'Ciudad de México',
+        'display_name': '🏛️ Ciudad de México',
+        'lat': 19.43,
+        'lon': -99.13,
+        'state': 'CDMX',
+        'icon': '🏛️',
+        'color': '#8b5cf6',
+        'description': 'Capital del país, clima templado'
+    },
+    'cancun': {
+        'name': 'Cancún',
+        'display_name': '🏖️ Cancún',
+        'lat': 21.16,
+        'lon': -86.85,
+        'state': 'Quintana Roo',
+        'icon': '🏖️',
+        'color': '#10b981',
+        'description': 'Paraíso caribeño, clima tropical'
+    },
+    'monterrey': {
+        'name': 'Monterrey',
+        'display_name': '🏔️ Monterrey',
+        'lat': 25.68,
+        'lon': -100.31,
+        'state': 'Nuevo León',
+        'icon': '🏔️',
+        'color': '#f59e0b',
+        'description': 'Ciudad industrial del norte'
+    },
+    'tijuana': {
+        'name': 'Tijuana',
+        'display_name': '🌵 Tijuana',
+        'lat': 32.52,
+        'lon': -117.04,
+        'state': 'Baja California',
+        'icon': '🌵',
+        'color': '#ef4444',
+        'description': 'Frontera norte, clima mediterráneo'
+    }
+}
+
 # Variables climáticas con iconos y descripciones mejoradas
 VARIABLES = {
     'temperatura': {

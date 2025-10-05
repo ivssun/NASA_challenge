@@ -1,10 +1,11 @@
 # app.py
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 from datetime import datetime
 import numpy as np
 
-from config.settings import PAGE_CONFIG, MEXICAN_CLIMATE_ZONES, VARIABLES
+from config.settings import PAGE_CONFIG, MEXICAN_CLIMATE_ZONES, VARIABLES, CIUDADES_NASA
 from styles.custom_styles import get_custom_css, get_climate_badge
 from components import (
     render_sidebar,
@@ -13,7 +14,7 @@ from components import (
     render_metric_cards
 )
 
-# Importar el procesador de CSV (BACKEND)
+from components.mapa import render_interactive_cities_map
 from data.csv_processor import CSVProcessor
 
 # Configuración de página
@@ -24,8 +25,14 @@ st.set_page_config(
     initial_sidebar_state=PAGE_CONFIG['initial_sidebar_state']
 )
 
-# Aplicar estilos personalizados
+# Aplicar estilos
 st.markdown(get_custom_css(), unsafe_allow_html=True)
+
+# ============================================
+# INICIALIZAR SESSION STATE
+# ============================================
+if 'selected_city_key' not in st.session_state:
+    st.session_state.selected_city_key = 'veracruz'
 
 # ============================================
 # INICIALIZAR PROCESADOR
@@ -74,43 +81,110 @@ tab1, tab2, tab3 = st.tabs([
 # ============================================
 # TAB 1: ANÁLISIS POR UBICACIÓN
 # ============================================
+# REEMPLAZA COMPLETAMENTE EL CONTENIDO DE with tab1: en app.py
+
 with tab1:
-    st.markdown("### 📍 Selecciona una ubicación para analizar")
+    st.markdown("### 🔍 Selecciona una ubicación para analizar")
     
+    # ============================================
+    # PASO 1: RENDERIZAR SIDEBAR
+    # ============================================
     user_inputs = render_sidebar()
     
-    # Layout en columnas
-    col_map, col_info = st.columns([2, 1])
+    # ============================================
+    # PASO 2: MAPA INTERACTIVO
+    # ============================================
+    st.markdown("#### 🗺️ Mapa de Ciudades NASA")
     
-    with col_map:
-        st.markdown("#### 🗺️ Ubicación en el Mapa")
-        render_map(
-            lat=user_inputs['lat'],
-            lon=user_inputs['lon'],
-            location_name=user_inputs['location_name']
-        )
+    st.markdown("""
+    <div style="
+        background: rgba(99, 102, 241, 0.15);
+        padding: 12px 20px;
+        border-radius: 10px;
+        border-left: 4px solid #6366f1;
+        margin-bottom: 20px;
+    ">
+        <p style="color: rgba(255,255,255,0.9); margin: 0; font-size: 0.95rem;">
+            💡 <strong>Tip:</strong> Haz click en cualquier ciudad del mapa para seleccionarla 
+            y ver sus datos climáticos históricos de NASA GIOVANNI.
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
     
-    with col_info:
+    # RENDERIZAR MAPA Y CAPTURAR CLICKS
+    clicked_city = render_interactive_cities_map(selected_city_key=user_inputs['city_key'])
+    
+    # ============================================
+    # PASO 3: PROCESAR CLICK EN EL MAPA
+    # ============================================
+    if clicked_city and clicked_city != st.session_state.selected_city_key:
+        # El usuario clickeó una ciudad DIFERENTE a la actual
+        st.session_state.selected_city_key = clicked_city
+        
+        # Mostrar notificación de cambio
+        city_name = CIUDADES_NASA[clicked_city]['name']
+        st.success(f"🔄 **Ciudad seleccionada:** {city_name}")
+        
+        # Forzar recarga para actualizar toda la interfaz
+        st.rerun()
+    
+    st.markdown("---")
+    
+    # ============================================
+    # INFORMACIÓN DE LA CIUDAD SELECCIONADA
+    # ============================================
+    col_info1, col_info2 = st.columns([1, 1])
+    
+    with col_info1:
+        city_data = user_inputs['city_data']
+        st.markdown(f"""
+        <div class="metric-card animated" style="border-left: 4px solid {city_data['color']};">
+            <div style="text-align: center; font-size: 3rem; margin-bottom: 15px;">
+                {city_data['icon']}
+            </div>
+            <h3 style='color: {city_data['color']}; text-align: center; margin-bottom: 15px;'>
+                {city_data['name']}
+            </h3>
+            <div style='margin: 10px 0;'>
+                <p style='color: rgba(255,255,255,0.9); text-align: center; line-height: 1.6;'>
+                    {city_data['description']}
+                </p>
+            </div>
+            <div style='margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1);'>
+                <p style='color: rgba(255,255,255,0.7); margin: 5px 0;'>
+                    <strong style='color: #6366f1;'>📍 Estado:</strong> {city_data['state']}
+                </p>
+                <p style='color: rgba(255,255,255,0.7); margin: 5px 0;'>
+                    <strong style='color: #6366f1;'>🌐 Coordenadas:</strong><br>
+                    Lat: {city_data['lat']}° | Lon: {city_data['lon']}°
+                </p>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col_info2:
         st.markdown(f"""
         <div class="metric-card animated">
             <h4 style='color: #00A6ED; margin-bottom: 20px;'>
-                📊 Información de Ubicación
+                📅 Parámetros de Consulta
             </h4>
             <div style='margin: 10px 0;'>
-                <strong style='color: #6366f1;'>📍 Lugar:</strong>
-                <p style='color: white; margin: 5px 0 15px 0;'>{user_inputs['location_name']}</p>
-            </div>
-            <div style='margin: 10px 0;'>
-                <strong style='color: #6366f1;'>🌐 Coordenadas:</strong>
+                <strong style='color: #6366f1;'>📆 Fecha:</strong>
                 <p style='color: white; margin: 5px 0 15px 0;'>
-                    Lat: {user_inputs['lat']}°<br>
-                    Lon: {user_inputs['lon']}°
+                    {user_inputs['date'].strftime('%d de %B, %Y')}
                 </p>
             </div>
             <div style='margin: 10px 0;'>
-                <strong style='color: #6366f1;'>📅 Fecha de Consulta:</strong>
+                <strong style='color: #6366f1;'>🌡️ Variables:</strong>
                 <p style='color: white; margin: 5px 0;'>
-                    {user_inputs['date'].strftime('%d de %B, %Y')}
+                    {'✅ Temperatura' if user_inputs['variables'].get('temperatura') else '⬜ Temperatura'}<br>
+                    {'✅ Precipitación' if user_inputs['variables'].get('precipitacion') else '⬜ Precipitación'}
+                </p>
+            </div>
+            <div style='margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1);'>
+                <p style='color: rgba(255,255,255,0.6); font-size: 0.85rem; text-align: center;'>
+                    🛰️ Datos de NASA GIOVANNI<br>
+                    Período: 1990-2024 (~320 registros)
                 </p>
             </div>
         </div>
@@ -138,7 +212,6 @@ with tab1:
                     if not is_selected:
                         continue
                     
-                    # Solo procesar temperatura y precipitación por ahora
                     if var_key not in ['temperatura', 'precipitacion']:
                         continue
                     
@@ -146,7 +219,6 @@ with tab1:
                         lat, lon, var_key, month, day
                     )
                     
-                    # Guardar el nombre de la ciudad (será el mismo para todas las variables)
                     if detected_city:
                         city_name = detected_city
                     
@@ -168,33 +240,56 @@ with tab1:
                 
                 # Mostrar resultados
                 if results:
-                    st.success(f"✅ Análisis completado - Ciudad NASA más cercana: **{city_name}**")
+                    st.success(f"✅ Análisis completado - Ciudad NASA: **{city_name}**")
                     st.markdown("### 📊 Métricas Climáticas (Datos Reales NASA 1990-2024)")
                     render_metric_cards(results)
                     
                     st.markdown("---")
-                    st.info("ℹ️ Disponibles: Temperatura y Precipitación. Próximamente: viento, humedad, nubosidad.")
                     
                     # Info adicional
                     st.markdown("### 📈 Detalles del Análisis")
                     col_a, col_b, col_c = st.columns(3)
                     
                     with col_a:
-                        st.metric("📍 Ciudad NASA", city_name)
+                        st.metric("🏙 Ciudad NASA", city_name)
                     with col_b:
                         st.metric("📅 Mes", fecha.strftime("%B"))
                     with col_c:
                         st.metric("📊 Variables", len(results))
+                    
+                    # Leyenda de interpretación
+                    with st.expander("ℹ️ ¿Cómo interpretar estos resultados?"):
+                        st.markdown("""
+                        <div style="color: rgba(255,255,255,0.9); line-height: 1.8;">
+                            <p><strong style="color: #00A6ED;">📊 Valor promedio:</strong> 
+                            Es el promedio histórico para este mes basado en 35 años de datos (1990-2024).</p>
+                            
+                            <p><strong style="color: #00A6ED;">📈 Probabilidad:</strong> 
+                            Indica qué tan frecuente ha sido que se supere el umbral extremo en este mes.</p>
+                            
+                            <p><strong style="color: #00A6ED;">🎯 Umbrales extremos:</strong></p>
+                            <ul>
+                                <li>Temperatura: > 35°C (calor extremo)</li>
+                                <li>Precipitación: > 50mm (lluvia intensa)</li>
+                            </ul>
+                        </div>
+                        """, unsafe_allow_html=True)
                 else:
                     st.warning("⚠️ Selecciona al menos 'Temperatura' o 'Precipitación' para analizar")
     
     else:
         st.markdown("""
         <div class="metric-card animated" style="text-align: center; padding: 40px;">
-            <h3>👈 Comienza tu análisis</h3>
+            <h3>👈 Configura tu análisis</h3>
             <p style="color: rgba(255,255,255,0.8); font-size: 1.1rem; margin-top: 15px;">
-                Configura la ubicación y fecha en el panel lateral,<br>
-                luego presiona <strong>"🔍 Consultar Datos NASA"</strong> para ver predicciones reales
+                Usa el panel lateral para:<br><br>
+                1️⃣ Ajustar la fecha<br>
+                2️⃣ Seleccionar variables<br>
+                3️⃣ Presionar <strong>"🔍 Consultar Datos NASA"</strong>
+            </p>
+            <br>
+            <p style="color: rgba(255,255,255,0.6); font-size: 0.9rem;">
+                💡 También puedes hacer click en cualquier ciudad del mapa arriba
             </p>
         </div>
         """, unsafe_allow_html=True)
@@ -219,12 +314,41 @@ with tab2:
 with tab3:
     st.markdown("### 📊 Estadísticas Climáticas de México")
     
+    # Mostrar las 5 ciudades con datos
+    st.markdown("#### 🛰️ Ciudades con Datos NASA GIOVANNI")
+    
+    cols = st.columns(5)
+    for idx, (city_key, city_info) in enumerate(CIUDADES_NASA.items()):
+        with cols[idx]:
+            st.markdown(f"""
+            <div class="metric-card" style="border-top: 4px solid {city_info['color']}; text-align: center;">
+                <div style="font-size: 3rem; margin-bottom: 10px;">
+                    {city_info['icon']}
+                </div>
+                <h4 style="color: {city_info['color']}; margin: 10px 0;">
+                    {city_info['name']}
+                </h4>
+                <p style="color: rgba(255,255,255,0.7); font-size: 0.85rem; margin: 10px 0;">
+                    📍 {city_info['state']}<br>
+                    🌐 {city_info['lat']}°, {city_info['lon']}°
+                </p>
+                <div style="margin-top: 15px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.1);">
+                    <small style="color: rgba(255,255,255,0.6);">
+                        ✅ Datos disponibles:<br>
+                        Temperatura & Precipitación
+                    </small>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    st.markdown("---")
+    
     st.markdown("""
     <div class="metric-card">
         <h4 style="color: #00A6ED;">🌎 Cobertura del Sistema</h4>
         <p style="color: rgba(255,255,255,0.9); line-height: 1.8;">
             Nuestro sistema analiza datos históricos de NASA GIOVANNI para <strong>5 ciudades principales</strong> 
-            con series temporales completas de 1990 a 2024 (35 años de datos mensuales).
+            con series temporales completas de 1990 a 2024 (35 años de datos mensuales = ~320 registros por variable).
         </p>
     </div>
     """, unsafe_allow_html=True)
@@ -265,8 +389,8 @@ with tab3:
                 <strong>Ciudades:</strong>
             </p>
             <ul style="color: rgba(255,255,255,0.8); line-height: 1.6;">
-                <li>Veracruz, CDMX, Cancún</li>
-                <li>Monterrey, Tijuana</li>
+                <li>🌊 Veracruz • 🏛️ CDMX • 🏖️ Cancún</li>
+                <li>🏔️ Monterrey • 🌵 Tijuana</li>
             </ul>
         </div>
         """, unsafe_allow_html=True)
