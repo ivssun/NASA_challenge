@@ -98,6 +98,131 @@ tab1, tab2, tab3 = st.tabs([
     "📊 Estadísticas Globales"
 ])
 
+# TAB 3 - ESTADÍSTICAS GLOBALES
+with tab3:
+    st.header("📊 Estadísticas Globales por Ciudad")
+    
+    # Selector de fecha con calendario
+    selected_date = st.date_input(
+        "📅 Selecciona la fecha a analizar",
+        value=datetime(2024, 6, 15),
+        help="Elige el día que quieres analizar",
+        key="global_date"
+    )
+    
+    # Obtener mes y día de la fecha seleccionada
+    month = selected_date.month
+    day = selected_date.day
+    
+    # Mostrar el día de la semana
+    day_name_spanish = {
+        0: "Lunes", 1: "Martes", 2: "Miércoles", 3: "Jueves",
+        4: "Viernes", 5: "Sábado", 6: "Domingo"
+    }
+    day_name = day_name_spanish[selected_date.weekday()]
+    
+    st.markdown(f"""
+    <div style="
+        background: rgba(99, 102, 241, 0.2);
+        padding: 10px;
+        border-radius: 10px;
+        text-align: center;
+        margin: 10px 0 20px 0;
+    ">
+        <small style="color: rgba(255,255,255,0.7);">Día seleccionado:</small><br>
+        <strong style="color: #00A6ED;">{day_name}</strong>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Selector de parámetros climáticos
+    selected_params = st.multiselect(
+        "Selecciona los parámetros a analizar",
+        ["Temperatura", "Precipitación", "Viento", "Humedad", "Nubosidad"],
+        default=["Temperatura", "Precipitación"],
+        key="global_params"
+    )
+    
+    # Verificar si hay parámetros seleccionados
+    if not selected_params:
+        st.markdown("""
+        <div style="
+            background: rgba(99, 102, 241, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            margin-top: 20px;
+            border: 1px solid rgba(99, 102, 241, 0.2);
+        ">
+            <h3 style="color: #00A6ED; margin-bottom: 15px; font-size: 1.2rem;">
+                ℹ️ Selecciona Parámetros para Analizar
+            </h3>
+            <p style="color: rgba(255,255,255,0.8); font-size: 1.1rem; margin: 0;">
+                Elige uno o más parámetros del menú superior:
+            </p>
+            <div style="
+                margin-top: 15px;
+                display: inline-block;
+                text-align: left;
+                padding: 15px;
+                background: rgba(0, 0, 0, 0.2);
+                border-radius: 8px;
+            ">
+                <div style="color: #00A6ED; font-size: 1.1rem;">
+                    🌡️ Temperatura<br>
+                    🌧️ Precipitación<br>
+                    💨 Viento<br>
+                    💧 Humedad<br>
+                    ☁️ Nubosidad
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        # Contenedor para cada ciudad
+        for city_key, city_info in processor.city_coords.items():
+            with st.expander(f"🏙️ {city_info['name']}", expanded=True):
+                results_cols = st.columns(len(selected_params))
+                
+                for idx, param in enumerate(selected_params):
+                    with results_cols[idx]:
+                        st.subheader(param)
+                        lat, lon = city_info['lat'], city_info['lon']
+                    
+                    if param == "Temperatura":
+                        temp_vals, _ = processor.get_historical_data(lat, lon, 'temperatura', month, day)
+                        if temp_vals is not None and len(temp_vals) > 0:
+                            stats = processor.get_statistics(temp_vals)
+                            st.write(f"🌡️ Temperatura promedio: **{stats['mean']:.1f}°C**")
+                            st.write(f"Rango: {stats['min']:.1f}°C - {stats['max']:.1f}°C")
+                    
+                    elif param == "Precipitación":
+                        analysis = integrate_with_processor(
+                            processor, precip_analyzer, lat, lon, month, day
+                        )
+                        if analysis:
+                            st.write(precip_analyzer.get_rain_forecast_message(analysis, datetime(2024, month, day)))
+                    
+                    elif param == "Viento":
+                        analysis = integrate_wind_with_processor(
+                            processor, wind_analyzer, lat, lon, month, day
+                        )
+                        if analysis:
+                            st.write(wind_analyzer.get_wind_forecast_message(analysis, datetime(2024, month, day)))
+                    
+                    elif param == "Humedad":
+                        analysis = integrate_humidity_with_processor(
+                            processor, humidity_analyzer, lat, lon, month, day
+                        )
+                        if analysis:
+                            st.write(humidity_analyzer.get_humidity_message(analysis, datetime(2024, month, day)))
+                    
+                    elif param == "Nubosidad":
+                        analysis = integrate_cloudiness_with_processor(
+                            processor, cloudiness_analyzer, lat, lon, month, day
+                        )
+                        if analysis:
+                            st.write(cloudiness_analyzer.get_cloudiness_message(analysis, datetime(2024, month, day)))
+
 # TAB 1 - ANÁLISIS POR UBICACIÓN
 with tab1:
     st.markdown("### 📍 Selecciona una ubicación para analizar")
@@ -347,7 +472,6 @@ with tab2:
 
 # TAB 3 - ESTADÍSTICAS GLOBALES
 with tab3:
-    st.markdown("### 📊 Estadísticas Climáticas de México")
     st.markdown("#### 🛰️ Ciudades con Datos NASA GIOVANNI")
     
     cols = st.columns(5)
