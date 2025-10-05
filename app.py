@@ -10,9 +10,10 @@ from styles.custom_styles import get_custom_css, get_climate_badge
 from components import (
     render_sidebar,
     render_map,
-    render_climate_finder,
-    render_metric_cards
-)
+    render_metric_cards)
+
+from components.climate_finder_enhanced import render_climate_finder_enhanced
+
 from components.metricas import (
     render_precipitation_card, 
     render_wind_card,
@@ -467,8 +468,7 @@ with tab1:
 
 # TAB 2 - BUSCADOR DE DESTINOS
 with tab2:
-    st.markdown("### 🔍 Encuentra tu Destino Perfecto por Clima")
-    render_climate_finder(processor)
+    render_climate_finder_enhanced(processor)
 
 # TAB 3 - ESTADÍSTICAS GLOBALES
 with tab3:
@@ -505,7 +505,7 @@ st.markdown("""
         <span style="font-size: 2rem;">🚀</span>
     </div>
     <h4 style="color: #00A6ED; margin-bottom: 10px;">
-        NASA Space Apps Challenge 2024
+        NASA Space Apps Challenge 2025
     </h4>
     <p style="font-size: 1rem; opacity: 0.9;">
         Datos 100% reales de <strong>NASA GIOVANNI</strong> • MERRA-2 & GPM
