@@ -70,7 +70,7 @@ def get_custom_css():
             50% {{ filter: brightness(1.3); }}
         }}
         
-        p, label, span, div {{
+        p, label {{
             font-family: 'Exo 2', sans-serif !important;
         }}
         

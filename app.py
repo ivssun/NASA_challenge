@@ -2,14 +2,19 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
+import numpy as np
 
-from config.settings import PAGE_CONFIG, MEXICAN_CLIMATE_ZONES
+from config.settings import PAGE_CONFIG, MEXICAN_CLIMATE_ZONES, VARIABLES
 from styles.custom_styles import get_custom_css, get_climate_badge
 from components import (
     render_sidebar,
     render_map,
-    render_climate_finder
+    render_climate_finder,
+    render_metric_cards
 )
+
+# Importar el procesador de CSV (BACKEND)
+from data.csv_processor import CSVProcessor
 
 # Configuración de página
 st.set_page_config(
@@ -21,6 +26,18 @@ st.set_page_config(
 
 # Aplicar estilos personalizados
 st.markdown(get_custom_css(), unsafe_allow_html=True)
+
+# ============================================
+# INICIALIZAR PROCESADOR
+# ============================================
+@st.cache_resource
+def init_processor():
+    """Inicializa y carga los CSVs de NASA"""
+    processor = CSVProcessor()
+    processor.load_all_csvs()
+    return processor
+
+processor = init_processor()
 
 # ============================================
 # HEADER PRINCIPAL
@@ -36,6 +53,15 @@ st.markdown("""
 
 st.markdown("---")
 
+# Mostrar estado
+if len(processor.data) > 0:
+    total_vars = sum(len(vars_dict) for vars_dict in processor.data.values())
+    st.success(f"✅ Datos NASA cargados: {len(processor.data)} ciudades | {total_vars} variables con series temporales (1990-2024)")
+else:
+    st.error("❌ No se cargaron datos. Verifica la carpeta data/csv/")
+
+st.markdown("---")
+
 # ============================================
 # TABS PRINCIPALES
 # ============================================
@@ -46,7 +72,7 @@ tab1, tab2, tab3 = st.tabs([
 ])
 
 # ============================================
-# TAB 1: ANÁLISIS POR UBICACIÓN (ORIGINAL)
+# TAB 1: ANÁLISIS POR UBICACIÓN
 # ============================================
 with tab1:
     st.markdown("### 📍 Selecciona una ubicación para analizar")
@@ -91,85 +117,76 @@ with tab1:
         """, unsafe_allow_html=True)
     
     st.markdown("---")
-    
-    # Sección de análisis
     st.markdown("### 📈 Análisis de Probabilidades")
     
     if user_inputs['consultar']:
-        # Animación de carga
-        with st.spinner('🛰️ Consultando datos de NASA GIOVANNI...'):
-            import time
-            time.sleep(1.5)  # Simulación de carga
-        
-        # Mensaje de desarrollo
-        st.markdown("""
-        <div class="metric-card" style="border-left: 4px solid #F59E0B;">
-            <h4>⚙️ Sistema en Desarrollo</h4>
-            <p style="color: rgba(255,255,255,0.9); line-height: 1.6;">
-                El backend está siendo integrado con las APIs de NASA GIOVANNI.<br>
-                Los datos climáticos se visualizarán aquí próximamente.
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown("<br>", unsafe_allow_html=True)
-        
-        # Variables que se analizarán
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.markdown("""
-            <div class="metric-card">
-                <h4 style="color: #06b6d4;">🌡️ Variables Atmosféricas</h4>
-                <ul style="color: rgba(255,255,255,0.9); line-height: 2;">
-                    <li><strong>Temperatura:</strong> Extremas altas/bajas</li>
-                    <li><strong>Precipitación:</strong> Intensidad de lluvia</li>
-                    <li><strong>Cobertura de Nubes:</strong> Porcentaje nuboso</li>
-                </ul>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col2:
-            st.markdown("""
-            <div class="metric-card">
-                <h4 style="color: #8b5cf6;">💨 Variables Dinámicas</h4>
-                <ul style="color: rgba(255,255,255,0.9); line-height: 2;">
-                    <li><strong>Viento:</strong> Velocidad y ráfagas</li>
-                    <li><strong>Humedad Relativa:</strong> Nivel de humedad</li>
-                    <li><strong>Índice de Confort:</strong> Condiciones combinadas</li>
-                </ul>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        # Ejemplo de visualización (placeholder)
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown("#### 📊 Vista Previa de Visualizaciones")
-        
-        col_a, col_b, col_c = st.columns(3)
-        
-        with col_a:
-            st.metric(
-                label="🌡️ Temperatura",
-                value="Próximamente",
-                delta="En desarrollo",
-                delta_color="off"
-            )
-        
-        with col_b:
-            st.metric(
-                label="🌧️ Precipitación",
-                value="Próximamente",
-                delta="En desarrollo",
-                delta_color="off"
-            )
-        
-        with col_c:
-            st.metric(
-                label="💨 Viento",
-                value="Próximamente",
-                delta="En desarrollo",
-                delta_color="off"
-            )
+        if len(processor.data) == 0:
+            st.error("❌ No hay datos cargados")
+        else:
+            with st.spinner('🛰️ Procesando datos históricos NASA GIOVANNI...'):
+                lat = user_inputs['lat']
+                lon = user_inputs['lon']
+                fecha = user_inputs['date']
+                month = fecha.month
+                day = fecha.day
+                
+                results = {}
+                city_name = None
+                
+                # Procesar variables seleccionadas
+                for var_key, is_selected in user_inputs['variables'].items():
+                    if not is_selected:
+                        continue
+                    
+                    # Solo procesar temperatura y precipitación por ahora
+                    if var_key not in ['temperatura', 'precipitacion']:
+                        continue
+                    
+                    historical_data, detected_city = processor.get_historical_data(
+                        lat, lon, var_key, month, day
+                    )
+                    
+                    # Guardar el nombre de la ciudad (será el mismo para todas las variables)
+                    if detected_city:
+                        city_name = detected_city
+                    
+                    if historical_data is not None and len(historical_data) > 0:
+                        var_info = VARIABLES[var_key]
+                        avg_value = float(np.mean(historical_data))
+                        probability = processor.calculate_probability(
+                            historical_data,
+                            threshold=var_info['threshold_extreme'],
+                            condition='greater'
+                        )
+                        delta = avg_value - var_info['threshold_extreme']
+                        
+                        results[var_key] = {
+                            'value': round(avg_value, 1),
+                            'delta': round(delta, 1),
+                            'probability': probability
+                        }
+                
+                # Mostrar resultados
+                if results:
+                    st.success(f"✅ Análisis completado - Ciudad NASA más cercana: **{city_name}**")
+                    st.markdown("### 📊 Métricas Climáticas (Datos Reales NASA 1990-2024)")
+                    render_metric_cards(results)
+                    
+                    st.markdown("---")
+                    st.info("ℹ️ Disponibles: Temperatura y Precipitación. Próximamente: viento, humedad, nubosidad.")
+                    
+                    # Info adicional
+                    st.markdown("### 📈 Detalles del Análisis")
+                    col_a, col_b, col_c = st.columns(3)
+                    
+                    with col_a:
+                        st.metric("📍 Ciudad NASA", city_name)
+                    with col_b:
+                        st.metric("📅 Mes", fecha.strftime("%B"))
+                    with col_c:
+                        st.metric("📊 Variables", len(results))
+                else:
+                    st.warning("⚠️ Selecciona al menos 'Temperatura' o 'Precipitación' para analizar")
     
     else:
         st.markdown("""
@@ -177,13 +194,13 @@ with tab1:
             <h3>👈 Comienza tu análisis</h3>
             <p style="color: rgba(255,255,255,0.8); font-size: 1.1rem; margin-top: 15px;">
                 Configura la ubicación y fecha en el panel lateral,<br>
-                luego presiona <strong>"🔍 Consultar Datos"</strong> para ver las predicciones
+                luego presiona <strong>"🔍 Consultar Datos NASA"</strong> para ver predicciones reales
             </p>
         </div>
         """, unsafe_allow_html=True)
 
 # ============================================
-# TAB 2: BUSCADOR DE DESTINOS (INNOVACIÓN)
+# TAB 2: BUSCADOR DE DESTINOS
 # ============================================
 with tab2:
     st.markdown("### 🔍 Encuentra tu Destino Perfecto por Clima")
@@ -206,44 +223,13 @@ with tab3:
     <div class="metric-card">
         <h4 style="color: #00A6ED;">🌎 Cobertura del Sistema</h4>
         <p style="color: rgba(255,255,255,0.9); line-height: 1.8;">
-            Nuestro sistema analiza datos históricos de NASA GIOVANNI para <strong>28 ciudades</strong> 
-            estratégicamente seleccionadas que representan los 5 tipos de clima principales de México.
+            Nuestro sistema analiza datos históricos de NASA GIOVANNI para <strong>5 ciudades principales</strong> 
+            con series temporales completas de 1990 a 2024 (35 años de datos mensuales).
         </p>
     </div>
     """, unsafe_allow_html=True)
     
-    st.markdown("<br>", unsafe_allow_html=True)
-    
-    # Mostrar las 5 categorías climáticas
-    st.markdown("#### 🗺️ Zonas Climáticas Cubiertas")
-    
-    for zone_key, zone_data in MEXICAN_CLIMATE_ZONES.items():
-        with st.expander(f"{zone_data['emoji']} {zone_data['nombre']} ({len(zone_data['cities'])} ciudades)"):
-            st.markdown(f"**Descripción:** {zone_data['description']}")
-            st.markdown("**Ciudades incluidas:**")
-            
-            cities_cols = st.columns(2)
-            for idx, city in enumerate(zone_data['cities']):
-                col_idx = idx % 2
-                with cities_cols[col_idx]:
-                    st.markdown(f"""
-                    <div style="
-                        background: rgba(255,255,255,0.05);
-                        padding: 10px;
-                        border-radius: 10px;
-                        margin: 5px 0;
-                        border-left: 3px solid {zone_data['color']};
-                    ">
-                        <strong>{city['name']}</strong><br>
-                        <small style="color: rgba(255,255,255,0.7);">
-                            {city['state']} • Alt: {city['alt']}m
-                        </small>
-                    </div>
-                    """, unsafe_allow_html=True)
-    
     st.markdown("---")
-    
-    # Información sobre fuentes de datos
     st.markdown("#### 🛰️ Fuentes de Datos NASA")
     
     col1, col2 = st.columns(2)
@@ -251,14 +237,15 @@ with tab3:
     with col1:
         st.markdown("""
         <div class="metric-card">
-            <h4 style="color: #6366f1;">📡 GIOVANNI</h4>
+            <h4 style="color: #6366f1;">📡 GIOVANNI - MERRA-2 & GPM</h4>
             <p style="color: rgba(255,255,255,0.9);">
-                GES DISC Interactive Online Visualization and Analysis Infrastructure
+                Modern-Era Retrospective analysis for Research and Applications
             </p>
             <ul style="color: rgba(255,255,255,0.8); line-height: 1.8;">
-                <li>Datos de múltiples satélites</li>
-                <li>Resolución temporal: diaria</li>
-                <li>Cobertura: 20+ años</li>
+                <li>Datos satelitales NASA</li>
+                <li>Resolución: Mensual</li>
+                <li>Período: 1990-2024</li>
+                <li>~320 registros por variable</li>
             </ul>
         </div>
         """, unsafe_allow_html=True)
@@ -266,13 +253,20 @@ with tab3:
     with col2:
         st.markdown("""
         <div class="metric-card">
-            <h4 style="color: #06b6d4;">🌍 Variables Monitoreadas</h4>
-            <ul style="color: rgba(255,255,255,0.9); line-height: 1.8;">
-                <li>🌡️ Temperatura del aire (2m)</li>
-                <li>🌧️ Precipitación acumulada</li>
-                <li>☁️ Cobertura de nubes</li>
-                <li>💨 Velocidad del viento (10m)</li>
-                <li>💧 Humedad relativa</li>
+            <h4 style="color: #06b6d4;">🌍 Variables y Ciudades</h4>
+            <p style="color: rgba(255,255,255,0.9); margin-bottom: 10px;">
+                <strong>Variables disponibles:</strong>
+            </p>
+            <ul style="color: rgba(255,255,255,0.8); line-height: 1.6; margin-bottom: 15px;">
+                <li>🌡️ Temperatura (MERRA-2)</li>
+                <li>🌧️ Precipitación (GPM)</li>
+            </ul>
+            <p style="color: rgba(255,255,255,0.9); margin-bottom: 10px;">
+                <strong>Ciudades:</strong>
+            </p>
+            <ul style="color: rgba(255,255,255,0.8); line-height: 1.6;">
+                <li>Veracruz, CDMX, Cancún</li>
+                <li>Monterrey, Tijuana</li>
             </ul>
         </div>
         """, unsafe_allow_html=True)
@@ -290,10 +284,10 @@ st.markdown("""
         NASA Space Apps Challenge 2024
     </h4>
     <p style="font-size: 1rem; opacity: 0.9;">
-        Datos proporcionados por <strong>NASA Earth Observation</strong> • GIOVANNI Platform
+        Datos 100% reales de <strong>NASA GIOVANNI</strong> • MERRA-2 & GPM Datasets
     </p>
     <p style="font-size: 0.9rem; opacity: 0.7; margin-top: 15px;">
-        🌟 Proyecto desarrollado por: <strong>WIROMP Los Ubuntus</strong>
+        🌟 Proyecto: <strong>WIROMP Los Ubuntus</strong>
     </p>
     <p style="font-size: 0.8rem; opacity: 0.6; margin-top: 10px;">
         Veracruz, México • 2024
